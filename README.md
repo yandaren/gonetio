@@ -1,6 +1,11 @@
 # gonetio
 
-a simple tcp netio lib go golang
+a simple tcp netio lib for golang
+
+# install
+
+get this package from [gonetio](https://github.com/yandaren/gonetio), then copy the decompressioned folder to 
+your $GOPATH/src, and make sure that the folder name is 'gonetio' rather than 'gonetio-master' or anything others
 
 # examples 
 - tcp client
