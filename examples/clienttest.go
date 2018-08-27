@@ -1,4 +1,4 @@
-package main
+package gonetio_test
 
 import (
 	"bytes"
@@ -97,7 +97,9 @@ func (tl *SessionEventHandler) Clone() gonetio.IoHandler {
 	return newSessionEventHandler(nil)
 }
 
-func main() {
+func NetioClientTest() {
+	fmt.Printf("NetioClientTest\n")
+
 	var url string = "127.0.0.1:8001"
 	clientSession := NewClientSession("echoclient", url)
 	handler := newSessionEventHandler(clientSession)

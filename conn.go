@@ -7,7 +7,6 @@ package gonetio
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -188,7 +187,7 @@ func (this *Tcpcon) Write(obj BaseObject) {
 	if this.ioFilterChain != nil {
 		this.ioFilterChain.FireWrite(obj)
 	} else {
-		fmt.Printf("Tcpcon Write, but io filter chain is nil, write failed\n")
+		LogError("Tcpcon Write, but io filter chain is nil, write failed.")
 	}
 }
 
@@ -207,10 +206,10 @@ func (this *Tcpcon) readLoop() {
 		recover()
 		this.Close()
 
-		fmt.Printf("connection[%s] readloop exit\n", this.remoteAddr)
+		LogInfo("connection[%s] readloop exit.", this.remoteAddr)
 	}()
 
-	fmt.Printf("connection[%s] readloop start\n", this.remoteAddr)
+	LogInfo("connection[%s] readloop start.", this.remoteAddr)
 
 	for {
 		select {
@@ -225,12 +224,12 @@ func (this *Tcpcon) readLoop() {
 		this.setReadDeadline()
 		readLen, err := this.read(this.recvBuffer)
 		if err != nil {
-			fmt.Printf("connection[%s] read data error, error:%s\n", this.remoteAddr, err.Error())
+			LogError("connection[%s] read data error, error:%s.", this.remoteAddr, err.Error())
 			return
 		}
 
 		if readLen == 0 {
-			fmt.Printf("connection[%s] read data error, read data len is 0, connection may closed\n", this.remoteAddr)
+			LogError("connection[%s] read data error, read data len is 0, connection may closed.", this.remoteAddr)
 			return
 		}
 
@@ -246,10 +245,10 @@ func (this *Tcpcon) writeLoop() {
 		recover()
 		this.Close()
 
-		fmt.Printf("connection[%s] write loop exit.\n", this.remoteAddr)
+		LogError("connection[%s] write loop exit.", this.remoteAddr)
 	}()
 
-	fmt.Printf("connection[%s] write loop start.\n", this.remoteAddr)
+	LogError("connection[%s] write loop start.", this.remoteAddr)
 	for {
 		select {
 		case <-this.globalExitChan:

@@ -5,7 +5,6 @@
 package gonetio
 
 import (
-	"fmt"
 	"net"
 	"sync"
 )
@@ -85,7 +84,7 @@ func (this *TcpConnector) doConnectTask(url string) {
 
 // try connect to the server
 func (this *TcpConnector) tryConnect(url string) bool {
-	fmt.Printf("try connect to url[%s]\n", url)
+	LogInfo("try connect to url[%s].", url)
 
 	this.url = url
 	this.conn = NewConn(nil, this.config.sendQueueSize, this.waitGroup, this.config.keepAliveMinTime)
@@ -93,13 +92,13 @@ func (this *TcpConnector) tryConnect(url string) bool {
 
 	addr, err := net.ResolveTCPAddr("tcp", url)
 	if err != nil {
-		fmt.Printf("Connection[%s] resolve tcpaddr[%s] failed, error:%s\n", this.connName, url, err.Error())
+		LogError("Connection[%s] resolve tcpaddr[%s] failed, error:%s.", this.connName, url, err.Error())
 		return false
 	}
 
 	this.conn.rawConn, err = net.DialTCP("tcp", nil, addr)
 	if err != nil {
-		fmt.Printf("Connection[%s] connect to url[%s] failed, error:%s\n", this.connName, url, err.Error())
+		LogError("Connection[%s] connect to url[%s] failed, error:%s.", this.connName, url, err.Error())
 		return false
 	}
 

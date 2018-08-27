@@ -1,4 +1,4 @@
-package main
+package gonetio_test
 
 import (
 	"bytes"
@@ -49,8 +49,8 @@ func (tl *EchoEventHandler) Clone() gonetio.IoHandler {
 	return newEchoEventHandler()
 }
 
-func main() {
-	fmt.Printf("hello world\n")
+func NetioServerTest() {
+	fmt.Printf("NetioServerTest\n")
 
 	config := gonetio.NewConfig(8001, 100, 0)
 

@@ -7,7 +7,6 @@ package codec
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"gonetio"
 )
 
@@ -61,7 +60,7 @@ func (this *FrameDecoder) Decode(filter *gonetio.IoFilter, obj gonetio.BaseObjec
 			}
 
 			if this.state.msgLen < 0 {
-				fmt.Printf("FrameDecoder of con[%s], message body size[%d] is negtive, something wrong, force close the connection\n",
+				gonetio.LogError("FrameDecoder of con[%s], message body size[%d] is negtive, something wrong, force close the connection.",
 					filter.GetCon().RemoteAddr(), this.state.msgLen)
 
 				filter.GetCon().Close()
@@ -70,7 +69,7 @@ func (this *FrameDecoder) Decode(filter *gonetio.IoFilter, obj gonetio.BaseObjec
 			}
 
 			if this.state.msgLen >= MaxBufferSize {
-				fmt.Printf("FrameDecoder of con[%s], message body size[%d] extend max buffer size[%d], something is wrong, force close the connection\n",
+				gonetio.LogError("FrameDecoder of con[%s], message body size[%d] extend max buffer size[%d], something is wrong, force close the connection.",
 					filter.GetCon().RemoteAddr(), this.state.msgLen, MaxBufferSize)
 
 				filter.GetCon().Close()

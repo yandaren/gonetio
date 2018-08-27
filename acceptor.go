@@ -5,7 +5,6 @@
 package gonetio
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"sync"
@@ -59,27 +58,27 @@ func (this *TcpAcceptor) acceptLoop() {
 		}
 		this.waitGroup.Done()
 
-		fmt.Printf("acceptor loop exit\n")
+		LogInfo("acceptor loop exit")
 	}()
 
-	fmt.Printf("acceptor loop start\n")
+	LogInfo("acceptor loop start")
 
 	for {
 		select {
 		case <-this.exitChan:
-			fmt.Printf("accept loop receive exit signal, exit\n")
+			LogInfo("accept loop receive exit signal, exit")
 			return
 		default:
 		}
 
 		conn, err := this.listener.AcceptTCP()
 		if err != nil {
-			fmt.Printf("accept loop, error:%s\n", err.Error())
+			LogError("accept loop, error:%s.", err.Error())
 			continue
 		}
 
 		addr := conn.RemoteAddr().String()
-		fmt.Printf("accept a new connection[%s]\n", addr)
+		LogInfo("accept a new connection[%s].", addr)
 
 		tcpCon := newConn(conn, this)
 		tcpCon.SetIoFilterChain(this.filterChain.NewInstanceAndClone(tcpCon))
@@ -97,18 +96,18 @@ func (this *TcpAcceptor) Start() bool {
 	addr, err = net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(this.config.listenPort))
 
 	if err != nil {
-		fmt.Printf("resolve tcp addr failed, port:%d error:%s\n", this.config.listenPort, err.Error())
+		LogError("resolve tcp addr failed, port:%d error:%s.", this.config.listenPort, err.Error())
 		return false
 	}
 
 	this.listener, err = net.ListenTCP("tcp", addr)
 
 	if err != nil {
-		fmt.Printf("bind to port[%d] failed, error:%s\n", this.config.listenPort, err.Error())
+		LogError("bind to port[%d] failed, error:%s.", this.config.listenPort, err.Error())
 		return false
 	}
 
-	fmt.Printf("acceptor listen to port[%d]\n", this.config.listenPort)
+	LogInfo("acceptor listen to port[%d].", this.config.listenPort)
 
 	this.waitGroup.Add(1)
 	go this.acceptLoop()
