@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"net"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -203,7 +204,11 @@ func asyncDo(fn func(), wg *sync.WaitGroup) {
 // read loop
 func (this *Tcpcon) readLoop() {
 	defer func() {
-		recover()
+		if p := recover(); p != nil {
+			LogError("panic recover, p: %v", p)
+			LogError("stack: %s", debug.Stack())
+		}
+
 		this.Close()
 
 		LogInfo("connection[%s] readloop exit.", this.remoteAddr)
@@ -242,7 +247,11 @@ func (this *Tcpcon) readLoop() {
 func (this *Tcpcon) writeLoop() {
 
 	defer func() {
-		recover()
+		if p := recover(); p != nil {
+			LogError("panic recover, p: %v", p)
+			LogError("stack: %s", debug.Stack())
+		}
+
 		this.Close()
 
 		LogError("connection[%s] write loop exit.", this.remoteAddr)

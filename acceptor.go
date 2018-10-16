@@ -6,6 +6,7 @@ package gonetio
 
 import (
 	"net"
+	"runtime/debug"
 	"strconv"
 	"sync"
 )
@@ -59,6 +60,11 @@ func (this *TcpAcceptor) acceptLoop() {
 		this.waitGroup.Done()
 
 		LogInfo("acceptor loop exit")
+
+		if p := recover(); p != nil {
+			LogError("panic recover, p: %v", p)
+			LogError("stack: %s", debug.Stack())
+		}
 	}()
 
 	LogInfo("acceptor loop start")
