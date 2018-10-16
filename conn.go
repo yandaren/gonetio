@@ -22,6 +22,7 @@ var (
 )
 
 type Tcpcon struct {
+	condID           uint32             // connection id
 	rawConn          *net.TCPConn       // the raw connection
 	keepAliveMinTime int                // in seconds, the min time between two package read from remote, valid only when the value is positive
 	customData       interface{}        // save the user custom data
@@ -58,6 +59,7 @@ func NewConnFull(conn *net.TCPConn, sendQueueSize int, wg *sync.WaitGroup, keepA
 	}
 
 	return &Tcpcon{
+		condID:           0,
 		rawConn:          conn,
 		keepAliveMinTime: keepAliveMinTimeDuration,
 		remoteAddr:       addr,
@@ -70,6 +72,16 @@ func NewConnFull(conn *net.TCPConn, sendQueueSize int, wg *sync.WaitGroup, keepA
 		waitGroup:        wg,
 		globalExitChan:   make(chan struct{}),
 	}
+}
+
+// set conid
+func (this *Tcpcon) SetConID(id uint32) {
+	this.condID = id
+}
+
+// get conid
+func (this *Tcpcon) GetConID() uint32 {
+	return this.condID
 }
 
 // set iofilter chain

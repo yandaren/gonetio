@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 type AcceptorConf struct {
@@ -27,6 +28,7 @@ func NewConfig(port int, sendQueueSize int, keepAliveMinTimeDuration int) *Accep
 }
 
 type TcpAcceptor struct {
+	nextConID   uint32
 	config      *AcceptorConf    // the acceptor config
 	filterChain *IoFilterChain   // filter chain
 	listener    *net.TCPListener // listener
@@ -37,6 +39,7 @@ type TcpAcceptor struct {
 // create new acceptor instance
 func NewAcceptor(conf *AcceptorConf) *TcpAcceptor {
 	return &TcpAcceptor{
+		nextConID:   0,
 		config:      conf,
 		filterChain: NewIoFilterChain(nil),
 		listener:    nil,
@@ -48,6 +51,11 @@ func NewAcceptor(conf *AcceptorConf) *TcpAcceptor {
 // get io filter chain
 func (this *TcpAcceptor) GetFilterChain() *IoFilterChain {
 	return this.filterChain
+}
+
+func (this *TcpAcceptor) generateNextConID() uint32 {
+	this.nextConID = atomic.AddUint32(&this.nextConID, 1)
+	return this.nextConID
 }
 
 // the acceptor main loop
@@ -87,6 +95,7 @@ func (this *TcpAcceptor) acceptLoop() {
 		LogInfo("accept a new connection[%s].", addr)
 
 		tcpCon := newConn(conn, this)
+		tcpCon.SetConID(this.generateNextConID())
 		tcpCon.SetIoFilterChain(this.filterChain.NewInstanceAndClone(tcpCon))
 		tcpCon.Start()
 	}
