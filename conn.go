@@ -21,6 +21,14 @@ var (
 	ErrConnException = errors.New("Connection exception")
 )
 
+// connection state
+type ConState int32
+
+const (
+	ConStateOpened ConState = iota
+	ConStateClosed
+)
+
 type Tcpcon struct {
 	condID           uint32             // connection id
 	rawConn          *net.TCPConn       // the raw connection
@@ -30,6 +38,7 @@ type Tcpcon struct {
 	fullBuffer       *bytes.Buffer      // full recv buffer
 	recvBuffer       []byte             // recv buffer
 	packetSendChan   chan *bytes.Buffer // packet send channel
+	conState         ConState           // the connection state
 	closeOnce        sync.Once          // make sure the connection call close just once
 	closeFlag        int32              // close flag
 	closeChan        chan struct{}      // close signal to the read/write loop
@@ -66,6 +75,7 @@ func NewConnFull(conn *net.TCPConn, sendQueueSize int, wg *sync.WaitGroup, keepA
 		fullBuffer:       bytes.NewBuffer([]byte{}),
 		recvBuffer:       make([]byte, 65535),
 		packetSendChan:   make(chan *bytes.Buffer, sendQueueSize),
+		conState:         ConStateClosed,
 		closeFlag:        0,
 		closeChan:        make(chan struct{}),
 		ioFilterChain:    nil,
@@ -122,6 +132,11 @@ func (this *Tcpcon) RemoteAddr() string {
 	return this.remoteAddr
 }
 
+// is connection opened
+func (this *Tcpcon) IsConnected() bool {
+	return this.conState == ConStateOpened
+}
+
 // is closed
 func (this *Tcpcon) IsClosed() bool {
 	return atomic.LoadInt32(&this.closeFlag) == 1
@@ -130,6 +145,7 @@ func (this *Tcpcon) IsClosed() bool {
 // close the connection
 func (this *Tcpcon) Close() {
 	this.closeOnce.Do(func() {
+		this.conState = ConStateClosed
 		atomic.StoreInt32(&this.closeFlag, 1)
 		close(this.closeChan)
 		close(this.packetSendChan)
@@ -176,6 +192,7 @@ func (this *Tcpcon) Start() {
 		this.SetRemoteAddr(this.rawConn.RemoteAddr().String())
 	}
 
+	this.conState = ConStateOpened
 	this.ioFilterChain.FireConnOpened()
 
 	// start the read/write/handle loop
@@ -269,7 +286,7 @@ func (this *Tcpcon) writeLoop() {
 		LogError("connection[%s] write loop exit.", this.remoteAddr)
 	}()
 
-	LogError("connection[%s] write loop start.", this.remoteAddr)
+	LogInfo("connection[%s] write loop start.", this.remoteAddr)
 	for {
 		select {
 		case <-this.globalExitChan:
