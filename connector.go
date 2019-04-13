@@ -50,7 +50,7 @@ func (this *TcpConnector) GetCon() *Tcpcon {
 
 // write data
 func (this *TcpConnector) Write(obj BaseObject) bool {
-	if this.conn != nil && !this.conn.IsClosed() {
+	if this.conn != nil && !this.conn.IsShutdown() {
 		this.conn.Write(obj)
 		return true
 	}
@@ -64,6 +64,10 @@ func (this *TcpConnector) GetIoFilterChain() *IoFilterChain {
 
 // try connect
 func (this *TcpConnector) AsyncConnect(url string) {
+	if this.IsShutdown() {
+		return
+	}
+
 	this.waitGroup.Add(1)
 	go this.doConnectTask(url)
 }
@@ -78,7 +82,9 @@ func (this *TcpConnector) doConnectTask(url string) {
 	if this.tryConnect(url) {
 		this.start()
 	} else {
-		this.conn.ioFilterChain.FireConnClosed()
+		if !this.IsShutdown() {
+			this.conn.ioFilterChain.FireConnClosed()
+		}
 	}
 }
 
@@ -117,14 +123,23 @@ func (this *TcpConnector) start() bool {
 // stop the connector
 func (this *TcpConnector) Stop() {
 	if this.conn != nil {
-		this.conn.Close()
+		this.conn.ShutDown()
 	}
 }
 
-// is the connector closed
-func (this *TcpConnector) IsClosed() bool {
+// is the connector connected
+func (this *TcpConnector) IsConnected() bool {
 	if this.conn != nil {
-		return this.conn.IsClosed()
+		return this.conn.IsConnected()
 	}
-	return true
+
+	return false
+}
+
+// is the connector shudown
+func (this *TcpConnector) IsShutdown() bool {
+	if this.conn != nil {
+		return this.conn.IsShutdown()
+	}
+	return false
 }

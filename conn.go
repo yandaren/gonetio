@@ -16,6 +16,7 @@ import (
 
 // error type
 var (
+	ErrConnShutdown  = errors.New("Connection has shutdown")
 	ErrConnClosed    = errors.New("Connection has been closed")
 	ErrWriteBlocking = errors.New("Write packet was blocking")
 	ErrConnException = errors.New("Connection exception")
@@ -40,8 +41,8 @@ type Tcpcon struct {
 	packetSendChan   chan *bytes.Buffer // packet send channel
 	conState         ConState           // the connection state
 	closeOnce        sync.Once          // make sure the connection call close just once
-	closeFlag        int32              // close flag
 	closeChan        chan struct{}      // close signal to the read/write loop
+	shutdownFlag     int32              // shutdown flag
 	ioFilterChain    *IoFilterChain     // filter chain
 	waitGroup        *sync.WaitGroup    // wait group
 	globalExitChan   chan struct{}      // global exit chan
@@ -76,7 +77,7 @@ func NewConnFull(conn *net.TCPConn, sendQueueSize int, wg *sync.WaitGroup, keepA
 		recvBuffer:       make([]byte, 65535),
 		packetSendChan:   make(chan *bytes.Buffer, sendQueueSize),
 		conState:         ConStateClosed,
-		closeFlag:        0,
+		shutdownFlag:     0,
 		closeChan:        make(chan struct{}),
 		ioFilterChain:    nil,
 		waitGroup:        wg,
@@ -138,26 +139,36 @@ func (this *Tcpcon) IsConnected() bool {
 }
 
 // is closed
-func (this *Tcpcon) IsClosed() bool {
-	return atomic.LoadInt32(&this.closeFlag) == 1
+func (this *Tcpcon) IsShutdown() bool {
+	return atomic.LoadInt32(&this.shutdownFlag) == 1
+}
+
+// shutdown the connection
+func (this *Tcpcon) ShutDown() {
+	if atomic.SwapInt32(&this.shutdownFlag, 1) == 0 {
+		LogError("Tcpcon ShutDown, url[%s].", this.remoteAddr)
+		this.Close()
+	}
 }
 
 // close the connection
 func (this *Tcpcon) Close() {
 	this.closeOnce.Do(func() {
 		this.conState = ConStateClosed
-		atomic.StoreInt32(&this.closeFlag, 1)
 		close(this.closeChan)
 		close(this.packetSendChan)
 		this.rawConn.Close()
-		this.ioFilterChain.FireConnClosed()
+
+		if !this.IsShutdown() {
+			this.ioFilterChain.FireConnClosed()
+		}
 	})
 }
 
 // add to the send queue
 func (this *Tcpcon) Flush(buffer *bytes.Buffer, timeout time.Duration) (err error) {
-	if this.IsClosed() {
-		return ErrConnClosed
+	if this.IsShutdown() {
+		return ErrConnShutdown
 	}
 
 	defer func() {
@@ -188,6 +199,10 @@ func (this *Tcpcon) Flush(buffer *bytes.Buffer, timeout time.Duration) (err erro
 
 // connection start
 func (this *Tcpcon) Start() {
+	if this.IsShutdown() {
+		return
+	}
+
 	if this.rawConn != nil {
 		this.SetRemoteAddr(this.rawConn.RemoteAddr().String())
 	}
@@ -267,8 +282,15 @@ func (this *Tcpcon) readLoop() {
 			return
 		}
 
+		if this.IsShutdown() {
+			return
+		}
+
 		this.fullBuffer.Write(this.recvBuffer[:readLen])
-		this.ioFilterChain.FireMessageReceived(this.fullBuffer)
+
+		if !this.IsShutdown() {
+			this.ioFilterChain.FireMessageReceived(this.fullBuffer)
+		}
 	}
 }
 
@@ -294,7 +316,10 @@ func (this *Tcpcon) writeLoop() {
 		case <-this.closeChan:
 			return
 		case p := <-this.packetSendChan:
-			if this.IsClosed() {
+			if p == nil {
+				return
+			}
+			if this.IsShutdown() {
 				return
 			}
 			if _, err := this.rawConn.Write(p.Bytes()); err != nil {
